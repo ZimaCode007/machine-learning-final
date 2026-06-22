@@ -87,7 +87,7 @@ class Trainer(TrainerBase):
         # Load Checkpoint
         self.start_epoch = None
         if args.load is not None:
-            ckpt_path = args.load + '.pth'
+            ckpt_path = args.load if args.load.endswith('.pth') else args.load + '.pth'
             self.load_checkpoint(ckpt_path)
 
         if self.args.from_scratch:
