@@ -216,7 +216,7 @@ class TrainerBase(object):
     def load(self, path, loc=None):
         if loc is None and hasattr(self.args, 'gpu'):
             loc = f'cuda:{self.args.gpu}'
-        state_dict = torch.load("%s.pth" % path, map_location=loc)
+        state_dict = torch.load("%s.pth" % path, map_location=loc, weights_only=True)
 
         original_keys = list(state_dict.keys())
         for key in original_keys:
