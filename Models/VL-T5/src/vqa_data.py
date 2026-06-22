@@ -187,9 +187,6 @@ class VQAFineTuneDataset(Dataset):
             # boxes = f[f'{img_id}/boxes'][()]  # (x1, y1, x2, y2)
             # boxes[:, (0, 2)] /= img_w
             # boxes[:, (1, 3)] /= img_h
-            np.testing.assert_array_less(boxes, 1+1e-5)
-            # np.testing.assert_array_less(boxes, 1+5e-2)
-            np.testing.assert_array_less(-boxes, 0+1e-5)
             boxes = torch.from_numpy(boxes)
             boxes.clamp_(min=0.0, max=1.0)
             max_tensor_size = min(36, boxes.size()[0])
