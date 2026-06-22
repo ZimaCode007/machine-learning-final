@@ -7,7 +7,8 @@ import time
 import sys
 import logging
 import transformers
-from transformers import PreTrainedModel, ViTModel, ViTImageProcessor, LxmertXLayer, TapasModel, TapasForSequenceClassification
+from transformers import PreTrainedModel, ViTModel, ViTImageProcessor, TapasModel, TapasForSequenceClassification
+from transformers.models.lxmert.modeling_lxmert import LxmertXLayer
 from dataclasses import dataclass
 from transformers.file_utils import ModelOutput
 from transformers import TapasConfig, LxmertConfig, ViTConfig, ViTPreTrainedModel, PreTrainedModel

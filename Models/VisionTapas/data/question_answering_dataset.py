@@ -25,11 +25,12 @@ class VisionTapasForQuestionAnsweringDataset(torch.utils.data.Dataset):
         question = instance["question"]
         answer = instance["answer"]
 
-        # Load table
+        # Load table (convert to object dtype to avoid Arrow backend issues with TaPas tokenizer)
         data_table = pd.read_csv(os.path.join(self.tables_folder, str(image_index)+".csv"), encoding='utf8')
         data_table.columns = [str(c) if not (isinstance(c, float) and c != c) else f"col_{i}" for i, c in enumerate(data_table.columns)]
-        data_table = data_table.fillna("").astype(str)
-        data_table = data_table.apply(lambda col: col.str.strip('%'))
+        data_table = data_table.fillna("").astype(object)
+        for col in data_table.columns:
+            data_table[col] = data_table[col].astype(str).str.strip('%')
         if len(data_table) == 0:
             raise ValueError("Empty table")
         # Process Answer

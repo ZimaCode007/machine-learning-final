@@ -26,7 +26,9 @@ class VisionTapasForClassificationDataset(torch.utils.data.Dataset):
         # Load & Process table
         data_table = pd.read_csv(os.path.join(self.tables_folder, str(image_index)+".csv"))
         data_table.columns = [str(c) if not (isinstance(c, float) and c != c) else f"col_{i}" for i, c in enumerate(data_table.columns)]
-        data_table = data_table.fillna("").astype(str)
+        data_table = data_table.fillna("").astype(object)
+        for col in data_table.columns:
+            data_table[col] = data_table[col].astype(str)
         encoding = self.tokenizer(table=data_table, queries=[question], padding="max_length", truncation=True, return_tensors="pt")
 
         # Load & Process Image

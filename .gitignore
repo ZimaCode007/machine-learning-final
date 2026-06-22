@@ -6,3 +6,5 @@ output/
 output_qa/
 *.safetensors
 .claude/
+demo_output/
+paper_page.txt
