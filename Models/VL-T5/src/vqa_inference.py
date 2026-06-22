@@ -424,9 +424,6 @@ if __name__ == "__main__":
         if args.load is not None:
             ckpt_str = "_".join(args.load.split('/')[-3:])
             comments.append(ckpt_str)
-        elif args.load_lxmert_qa is not None:
-            ckpt_str = "_".join(args.load_lxmert_qa.split('/')[-3:])
-            comments.append(ckpt_str)
         if args.comment != '':
             comments.append(args.comment)
         comment = '_'.join(comments)
