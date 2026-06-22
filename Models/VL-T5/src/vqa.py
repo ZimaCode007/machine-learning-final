@@ -33,7 +33,7 @@ _use_apex = False
 
 # Check if Pytorch version >= 1.6 to switch between Native AMP and Apex
 if version.parse(torch.__version__) < version.parse("1.6"):
-    from transormers.file_utils import is_apex_available
+    from transformers.file_utils import is_apex_available
     if is_apex_available():
         from apex import amp
     _use_apex = True
@@ -78,7 +78,7 @@ class Trainer(TrainerBase):
         self.model = self.create_model(model_class, config, **model_kwargs)
 
         if 't5' in self.args.tokenizer:
-            self.model.resize_token_embeddings(self.tokenizer.vocab_size)
+            self.model.resize_token_embeddings(len(self.tokenizer))
         elif 'bart' in self.args.tokenizer:
             self.model.resize_token_embeddings(self.model.model.shared.num_embeddings + num_added_toks)
 
@@ -125,26 +125,15 @@ class Trainer(TrainerBase):
             best_valid = 0.
             best_epoch = 0
 
-            if 't5' in self.args.backbone:
-                if self.args.use_vision:
-                    project_name = "VLT5_VQA"
-                else:
-                    project_name = "T5_VQA"
-            elif 'bart' in self.args.backbone:
-                if self.args.use_vision:
-                    project_name = "VLBart_VQA"
-                else:
-                    project_name = "Bart_VQA"
-
-            # wandb.init(project=project_name)
-            # wandb.run.name = self.args.run_name
-            # wandb.config.update(self.args)
-            # wandb.watch(self.model)
-
-            src_dir = Path(__file__).resolve().parent
-            base_path = str(src_dir.parent)
-            src_dir = str(src_dir)
-            #wandb.save(os.path.join(src_dir + "/*.py"), base_path=base_path)
+            from torch.utils.tensorboard import SummaryWriter
+            import json as _json
+            tb_dir = os.path.join(self.args.output, 'tb_logs')
+            self.tb_writer = SummaryWriter(tb_dir)
+            self.metrics_log = []
+            self.metrics_path = os.path.join(self.args.output, 'metrics.json')
+            os.makedirs(self.args.output, exist_ok=True)
+            print(f'TensorBoard logs: {tb_dir}')
+            print(f'Metrics JSON: {self.metrics_path}')
 
         if self.args.distributed:
             dist.barrier()
@@ -241,6 +230,11 @@ class Trainer(TrainerBase):
                     pbar.set_description(desc_str)
                     pbar.update(1)
 
+                    self.tb_writer.add_scalar('Train/loss_step', loss.item(), global_step)
+                    self.tb_writer.add_scalar('Train/lr', lr, global_step)
+                    if global_step % 50 == 0:
+                        self.tb_writer.add_scalar('Train/loss_avg', loss_meter.val, global_step)
+
                 if self.args.distributed:
                     dist.barrier()
 
@@ -251,31 +245,35 @@ class Trainer(TrainerBase):
             score_dict = self.evaluate(self.val_loader)
 
             if self.verbose:
-                #valid_score = score_dict['topk_score'] * 100.
                 valid_score_raw = score_dict['overall']
+                train_loss_avg = epoch_results['loss'] / len(self.train_loader)
+
                 if valid_score_raw > best_valid or epoch == 0:
                     best_valid = valid_score_raw
                     best_epoch = epoch
                     self.save("BEST")
 
+                self.tb_writer.add_scalar('Epoch/train_loss', train_loss_avg, epoch)
+                self.tb_writer.add_scalar('Epoch/val_accuracy', valid_score_raw, epoch)
+                self.tb_writer.add_scalar('Epoch/best_val_accuracy', best_valid, epoch)
+                self.tb_writer.flush()
+
+                epoch_metric = {
+                    'epoch': epoch,
+                    'train_loss': round(train_loss_avg, 6),
+                    'val_accuracy': round(valid_score_raw, 2),
+                    'best_val_accuracy': round(best_valid, 2),
+                    'lr': lr,
+                }
+                self.metrics_log.append(epoch_metric)
+                import json as _json
+                with open(self.metrics_path, 'w') as _f:
+                    _json.dump(self.metrics_log, _f, indent=2)
+
                 log_str = ''
+                log_str += "\nEpoch %d: Train Loss %0.4f" % (epoch, train_loss_avg)
                 log_str += "\nEpoch %d: Valid Raw %0.2f" % (epoch, valid_score_raw)
                 log_str += "\nEpoch %d: Best Raw %0.2f\n" % (best_epoch, best_valid)
-
-                # wandb_log_dict = {}
-                # wandb_log_dict['Train/Loss'] = epoch_results['loss'] / len(self.train_loader)
-                #
-                # wandb_log_dict['Valid/score'] = valid_score
-                #
-                # wandb_log_dict['Valid/raw_score'] = score_dict['overall']
-                # for qtype, score in score_dict['perQuestionType'].items():
-                #     wandb_log_dict[f'Valid_Qtypes/{qtype}'] = score
-                # for atype, score in score_dict['perAnswerType'].items():
-                #     if atype == 'yes/no':
-                #         atype = 'yes_no'
-                #     wandb_log_dict[f'Valid_Atypes/{atype}'] = score
-                #
-                # wandb.log(wandb_log_dict, step=epoch)
                 print(log_str)
 
             if self.args.distributed:
@@ -283,6 +281,7 @@ class Trainer(TrainerBase):
 
         if self.verbose:
             self.save("LAST")
+            self.tb_writer.close()
 
         # Test Set
         best_path = os.path.join(self.args.output, 'BEST')
@@ -445,9 +444,6 @@ if __name__ == "__main__":
         comments = []
         if args.load is not None:
             ckpt_str = "_".join(args.load.split('/')[-3:])
-            comments.append(ckpt_str)
-        elif args.load_lxmert_qa is not None:
-            ckpt_str = "_".join(args.load_lxmert_qa.split('/')[-3:])
             comments.append(ckpt_str)
         if args.comment != '':
             comments.append(args.comment)

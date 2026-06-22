@@ -8,9 +8,9 @@ from transformers.models.bart.modeling_bart import (
     BartEncoderLayer, BartEncoder, BartDecoder,
     BartPretrainedModel, BartModel, BartForConditionalGeneration,
     BartConfig,
-    ACT2FN,
-    shift_tokens_right, _make_causal_mask, _expand_mask
+    shift_tokens_right,
 )
+from transformers.activations import ACT2FN
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -20,9 +20,16 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 import copy
 
 from transformers.modeling_outputs import ModelOutput, BaseModelOutput, BaseModelOutputWithPast, BaseModelOutputWithPastAndCrossAttentions, Seq2SeqLMOutput, Seq2SeqModelOutput
-from transformers.modeling_utils import PreTrainedModel, find_pruneable_heads_and_indices, prune_linear_layer
+from transformers.modeling_utils import PreTrainedModel
 from transformers.utils import logging
-from transformers import BeamScorer, BeamSearchScorer
+
+
+def _expand_mask(mask, dtype, tgt_len=None):
+    bsz, src_len = mask.size()
+    tgt_len = tgt_len if tgt_len is not None else src_len
+    expanded_mask = mask[:, None, None, :].expand(bsz, 1, tgt_len, src_len).to(dtype)
+    inverted_mask = 1.0 - expanded_mask
+    return inverted_mask.masked_fill(inverted_mask.to(torch.bool), torch.finfo(dtype).min)
 
 logger = logging.get_logger(__name__)
 
