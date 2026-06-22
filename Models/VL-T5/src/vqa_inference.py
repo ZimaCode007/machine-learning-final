@@ -389,6 +389,11 @@ def main_worker(gpu, args):
 
 
 
+    if args.valid_batch_size is not None:
+        valid_batch_size = args.valid_batch_size
+    else:
+        valid_batch_size = args.batch_size
+
     print(f'Building test loader at GPU {gpu}')
     test_loader = get_loader(
         args,
