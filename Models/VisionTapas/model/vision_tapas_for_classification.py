@@ -8,6 +8,7 @@ import time
 import sys
 import logging
 import transformers
+from dataclasses import dataclass
 from transformers.file_utils import ModelOutput
 import torch.nn as nn
 import torch
@@ -24,6 +25,7 @@ class GeLU(nn.Module):
     def forward(self, x):
         return gelu(x)
 
+@dataclass
 class VisionTapasForClassificationOutput(ModelOutput):
     """
     VisionTapasModelOutput's outputs that contain the last hidden states, pooled outputs, and attention probabilities for the language,
@@ -73,7 +75,7 @@ class VisionTapasForClassification(VisionTapasPreTrainedModel):
         self.loss = nn.CrossEntropyLoss()
 
         # Initialize weights
-        self.init_weights()
+        self.post_init()
 
     def forward(self, input_ids, token_type_ids, attention_mask, pixel_values=None, labels=None, output_attentions=None, output_hidden_states=None, return_dict=None):
         r"""
