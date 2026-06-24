@@ -134,7 +134,8 @@ class TrainerBase(object):
         lr_scheduler = None
 
         if 'adamw' in self.args.optim:
-            from transformers.optimization import AdamW, get_linear_schedule_with_warmup
+            from torch.optim import AdamW
+            from transformers.optimization import get_linear_schedule_with_warmup
             batch_per_epoch = len(self.train_loader)
             t_total = batch_per_epoch // self.args.gradient_accumulation_steps * self.args.epochs
             warmup_ratio = self.args.warmup_ratio

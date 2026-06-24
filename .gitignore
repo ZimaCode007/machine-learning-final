@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+
+# IDE
+.idea/
+
+# Model weights & training outputs
+*.pth
+Models/VL-T5/output/
+Models/VL-T5/output_T5/
+Models/VL-T5/output_v2/
+Models/VL-T5/output_v3/
+Models/T5/saved_model/
+Models/VisionTapas/output/
+Models/VisionTapas/output_qa/
+Models/VisionTapas/demo_output/
+
+# Data (too large for git)
+Models/VL-T5/data/

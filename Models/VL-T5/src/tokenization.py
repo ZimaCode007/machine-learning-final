@@ -38,6 +38,13 @@ class VLT5Tokenizer(T5Tokenizer):
         if vis_extra_ids > 0:
             additional_special_tokens.extend(["<vis_extra_id_{}>".format(i) for i in range(vis_extra_ids)])
 
+        self.vocab_file = vocab_file
+        self._extra_ids = extra_ids
+        self._vis_extra_ids = vis_extra_ids
+
+        self.sp_model = spm.SentencePieceProcessor()
+        self.sp_model.Load(vocab_file)
+
         PreTrainedTokenizer.__init__(
             self,
             eos_token=eos_token,
@@ -47,13 +54,6 @@ class VLT5Tokenizer(T5Tokenizer):
             additional_special_tokens=additional_special_tokens,
             **kwargs,
         )
-
-        self.vocab_file = vocab_file
-        self._extra_ids = extra_ids
-        self._vis_extra_ids = vis_extra_ids
-
-        self.sp_model = spm.SentencePieceProcessor()
-        self.sp_model.Load(vocab_file)
 
     @property
     def vocab_size(self):
