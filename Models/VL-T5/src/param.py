@@ -59,7 +59,7 @@ def parse_args(parse=True, **optional_kwargs):
     # Data Splits
     parser.add_argument("--train", default='train')
     parser.add_argument("--valid", default='valid')
-    parser.add_argument("--test", default=None)
+    parser.add_argument("--test", default='test')
     parser.add_argument('--test_only', action='store_true')
 
     parser.add_argument('--submit', action='store_true')
@@ -164,7 +164,7 @@ def parse_args(parse=True, **optional_kwargs):
 
 
     # New Args
-    parser.add_argument("--src_folder", type=str, default='D:/York University/ChartQA/VL-T5-local/plotqa_dataset_small/')
+    parser.add_argument("--src_folder", type=str, default='data/')
 
     # Parse the arguments.
     if parse:
@@ -214,7 +214,7 @@ class Config(object):
     @classmethod
     def load(cls, path):
         with open(path, 'r') as f:
-            kwargs = yaml.load(f)
+            kwargs = yaml.load(f, Loader=yaml.SafeLoader)
 
         return Config(**kwargs)
 

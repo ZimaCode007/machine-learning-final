@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.idea/
+.venv/
+Models/VL-T5/data/
+Models/VL-T5/output/
+datasets/

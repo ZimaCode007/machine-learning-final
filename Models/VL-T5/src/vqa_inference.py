@@ -33,7 +33,7 @@ _use_apex = False
 
 # Check if Pytorch version >= 1.6 to switch between Native AMP and Apex
 if version.parse(torch.__version__) < version.parse("1.6"):
-    from transormers.file_utils import is_apex_available
+    from transformers.file_utils import is_apex_available
     if is_apex_available():
         from apex import amp
     _use_apex = True
@@ -87,7 +87,7 @@ class Trainer(TrainerBase):
         # Load Checkpoint
         self.start_epoch = None
         if args.load is not None:
-            ckpt_path = args.load + '.pth'
+            ckpt_path = args.load if args.load.endswith('.pth') else args.load + '.pth'
             self.load_checkpoint(ckpt_path)
 
         if self.args.from_scratch:
@@ -389,6 +389,11 @@ def main_worker(gpu, args):
 
 
 
+    if args.valid_batch_size is not None:
+        valid_batch_size = args.valid_batch_size
+    else:
+        valid_batch_size = args.batch_size
+
     print(f'Building test loader at GPU {gpu}')
     test_loader = get_loader(
         args,
@@ -418,9 +423,6 @@ if __name__ == "__main__":
         comments = []
         if args.load is not None:
             ckpt_str = "_".join(args.load.split('/')[-3:])
-            comments.append(ckpt_str)
-        elif args.load_lxmert_qa is not None:
-            ckpt_str = "_".join(args.load_lxmert_qa.split('/')[-3:])
             comments.append(ckpt_str)
         if args.comment != '':
             comments.append(args.comment)

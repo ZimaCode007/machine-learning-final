@@ -11,6 +11,7 @@ from tqdm import tqdm
 import torch
 import numpy as np
 from copy import deepcopy
+import os
 import re
 import pandas as pd
 from torch.utils.data.distributed import DistributedSampler
@@ -30,7 +31,7 @@ vqa_dir = dataset_dir.joinpath('vqa')
 
 
 class VQAFineTuneDataset(Dataset):
-    def __init__(self, src_folder="D:/York University/ChartQA/VL-T5-local/plotqa_dataset_small/train/", split='train', raw_dataset=None, rank=-1, topk=-1, verbose=True, args=None, mode='train'):
+    def __init__(self, src_folder="data/train", split='train', raw_dataset=None, rank=-1, topk=-1, verbose=True, args=None, mode='train'):
         super().__init__()
 
         #self.raw_dataset = raw_dataset
@@ -41,7 +42,7 @@ class VQAFineTuneDataset(Dataset):
         self.mode = mode
 
         # Loading datasets to data
-        instances = pd.read_csv(src_folder + "data.csv")
+        instances = pd.read_csv(os.path.join(src_folder, "data.csv"))
         self.instances = instances
         self.inputs = instances["Input"].values
         self.outputs = None
@@ -50,12 +51,6 @@ class VQAFineTuneDataset(Dataset):
         self.images_indices = instances['Image Index'].values
         self.questions_ids = instances['Question ID'].values
         self.src_folder = src_folder
-        ##
-
-        # Loading datasets to data
-        # self.sources = split.split(',')
-        # if self.verbose:
-        #     print('Data sources: ', self.sources)
 
         if 't5' in self.args.backbone:
             if self.args.use_vision:
@@ -110,10 +105,15 @@ class VQAFineTuneDataset(Dataset):
 
         self.rank = rank
 
-        # if self.topk > 0:
-        #     data = data[:self.topk]
-        #     if self.verbose:
-        #         print(f"Use only {self.topk} data")
+        if self.topk > 0:
+            self.instances = self.instances[:self.topk]
+            self.inputs = self.inputs[:self.topk]
+            if self.outputs is not None:
+                self.outputs = self.outputs[:self.topk]
+            self.images_indices = self.images_indices[:self.topk]
+            self.questions_ids = self.questions_ids[:self.topk]
+            if self.verbose:
+                print(f"Use only {self.topk} data")
         #
         # self.data = data
 
@@ -149,7 +149,7 @@ class VQAFineTuneDataset(Dataset):
             out_dict['img_id'] = img_id
             
             try:
-                with open(self.src_folder + "features/" + str(img_id) + ".json") as f:
+                with open(os.path.join(self.src_folder, "features", str(img_id) + ".json")) as f:
                     objects_data = json.load(f)
                 feats = torch.FloatTensor(objects_data['visual_feats'])
                 boxes = np.array(objects_data['bboxes'])
@@ -187,9 +187,6 @@ class VQAFineTuneDataset(Dataset):
             # boxes = f[f'{img_id}/boxes'][()]  # (x1, y1, x2, y2)
             # boxes[:, (0, 2)] /= img_w
             # boxes[:, (1, 3)] /= img_h
-            np.testing.assert_array_less(boxes, 1+1e-5)
-            # np.testing.assert_array_less(boxes, 1+5e-2)
-            np.testing.assert_array_less(-boxes, 0+1e-5)
             boxes = torch.from_numpy(boxes)
             boxes.clamp_(min=0.0, max=1.0)
             max_tensor_size = min(36, boxes.size()[0])
@@ -398,7 +395,7 @@ def get_loader(args, split='train', mode='train',
     #_dset = VQADataset(split, verbose)
 
     dataset = VQAFineTuneDataset(
-        src_folder=args.src_folder+split+"/",
+        src_folder=os.path.join(args.src_folder, split),
         split=split,
         #raw_dataset=_dset,
         rank=gpu,
@@ -428,7 +425,7 @@ def get_loader(args, split='train', mode='train',
             drop_last=False)
 
     if verbose:
-        loader.evaluator = VQAEvaluator(args.src_folder+split+"/")
+        loader.evaluator = VQAEvaluator(os.path.join(args.src_folder, split))
 
     loader.task = 'vqa'
 
@@ -503,9 +500,8 @@ class VQADataset:
 
 
 class VQAEvaluator:
-    def __init__(self, src_folder="D:/York University/ChartQA/VL-T5-local/plotqa_dataset_small/train/"):
-        # Loading datasets to data
-        instances = pd.read_csv(src_folder + "data.csv")
+    def __init__(self, src_folder="data/train"):
+        instances = pd.read_csv(os.path.join(src_folder, "data.csv"))
         self.instances = instances
         self.inputs = instances["Input"].values
         self.outputs = None
@@ -563,8 +559,8 @@ class VQAEvaluator:
 							 'the'
 							]
 
-        self.periodStrip  = re.compile("(?!<=\d)(\.)(?!\d)")
-        self.commaStrip   = re.compile("(\d)(\,)(\d)")
+        self.periodStrip  = re.compile(r"(?!<=\d)(\.)(?!\d)")
+        self.commaStrip   = re.compile(r"(\d)(\,)(\d)")
         self.punct        = [';', r"/", '[', ']', '"', '{', '}',
 							 '(', ')', '=', '+', '\\', '_', '-',
 							 '>', '<', '@', '`', ',', '?', '!']

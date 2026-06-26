@@ -4,7 +4,7 @@ name=VLT5
 output=snap/vqa/$name
 
 PYTHONPATH=$PYTHONPATH:./src \
-python3.8 -m torch.distributed.launch \
+torchrun \
     --nproc_per_node=$1 \
     src/vqa_inference.py \
         --distributed --multiGPU \
