@@ -13,6 +13,7 @@ import os
 import json
 import random
 import shutil
+import time
 
 import torch
 import pandas as pd
@@ -149,8 +150,8 @@ def save_single_sample(item, chartqa_dir, save_path, index, category):
 def main():
     parser = argparse.ArgumentParser(description="T5 Demo on ChartQA")
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    project_dir = os.path.dirname(os.path.dirname(script_dir))
-    parser.add_argument("--model", type=str, default=os.path.join(script_dir, "saved_model"))
+    project_dir = os.path.dirname(os.path.dirname(os.path.dirname(script_dir)))
+    parser.add_argument("--model", type=str, default=os.path.join(script_dir, "BEST"))
     parser.add_argument("--chartqa_dir", type=str, default=os.path.join(project_dir, "ChartQA Dataset"))
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--n_eval", type=int, default=200)
@@ -182,14 +183,17 @@ def main():
     human_sample = random.sample(human, min(args.n_eval, len(human)))
     aug_sample = random.sample(augmented, min(args.n_eval, len(augmented)))
 
+    t0 = time.time()
     human_acc, human_results = run_accuracy_test(
         model, tokenizer, human_sample, args.chartqa_dir, device, "Human")
     aug_acc, aug_results = run_accuracy_test(
         model, tokenizer, aug_sample, args.chartqa_dir, device, "Augmented")
+    eval_time = time.time() - t0
 
     overall_correct = sum(r["correct"] for r in human_results + aug_results)
     overall_total = len(human_results) + len(aug_results)
     overall_acc = 100 * overall_correct / overall_total if overall_total > 0 else 0
+    avg_time = eval_time / overall_total if overall_total > 0 else 0
 
     print(f"\n{'='*60}")
     print(f"  ACCURACY RESULTS (T5 text-only)")
@@ -197,6 +201,8 @@ def main():
     print(f"  Human:     {human_acc:.1f}%  ({sum(r['correct'] for r in human_results)}/{len(human_results)})")
     print(f"  Augmented: {aug_acc:.1f}%  ({sum(r['correct'] for r in aug_results)}/{len(aug_results)})")
     print(f"  Overall:   {overall_acc:.1f}%  ({overall_correct}/{overall_total})")
+    print(f"  Total inference time: {eval_time:.2f}s")
+    print(f"  Avg time per sample:  {avg_time:.4f}s")
     print(f"{'='*60}")
 
     with open(os.path.join(demo_dir, "accuracy_results.json"), "w", encoding="utf-8") as f:
@@ -205,6 +211,9 @@ def main():
             "human_accuracy": round(human_acc, 2),
             "augmented_accuracy": round(aug_acc, 2),
             "overall_accuracy": round(overall_acc, 2),
+            "total_inference_time_s": round(eval_time, 2),
+            "avg_time_per_sample_s": round(avg_time, 4),
+            "num_samples": overall_total,
             "human_results": human_results,
             "augmented_results": aug_results,
         }, f, indent=2, ensure_ascii=False)

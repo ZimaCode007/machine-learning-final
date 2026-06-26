@@ -3,7 +3,7 @@ VisionTapas QA Demo
 1. Evaluate accuracy on 300 random test samples
 2. Visualize 5 random predictions with chart images
 """
-import json, os, pickle, argparse, random, warnings, sys
+import json, os, pickle, argparse, random, warnings, sys, time
 warnings.filterwarnings('ignore')
 import torch
 import numpy as np
@@ -27,7 +27,7 @@ import matplotlib.font_manager as fm
 # ================================================================
 
 def load_model(ckpt_path):
-    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     fv = pickle.load(open(os.path.join(base_dir, 'datasets', 'fixed_vocab.pkl'), 'rb'))
     agg = {'0': 'NONE', '1': 'SUM', '2': 'AVERAGE', '3': 'COUNT', '4': 'Diff', '5': 'Ratio'}
     for i in range(len(fv)):
@@ -275,12 +275,12 @@ def visualize_samples(model, tok, feat, fv, val_data, tables_folder, images_fold
 # ================================================================
 
 def main():
-    base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     datasets_dir = os.path.join(base, 'datasets')
     tables_folder = os.path.join(datasets_dir, 'test', 'tables')
     images_folder = os.path.join(datasets_dir, 'test', 'png')
     out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'demo_output')
-    ckpt = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'output_qa', 'phase1_best')
+    ckpt = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'phase1_best')
 
     import shutil
     if os.path.exists(out_dir):
@@ -314,8 +314,12 @@ def main():
     print("  PART 1: Accuracy Evaluation (200 Human + 200 Augmented)")
     print("=" * 60)
 
+    t0 = time.time()
     h_exact, h_relaxed = evaluate_accuracy(model, tok, feat, fv, test_h, tables_folder, images_folder, device, n=200)
     m_exact, m_relaxed = evaluate_accuracy(model, tok, feat, fv, test_m, tables_folder, images_folder, device, n=200)
+    eval_time = time.time() - t0
+    num_samples = 400
+    avg_time = eval_time / num_samples
 
     overall_exact = (h_exact + m_exact) / 2
     overall_relaxed = (h_relaxed + m_relaxed) / 2
@@ -328,6 +332,8 @@ def main():
     print(f"  | ChartQA-M (augm) | {m_exact*100:>6.2f}% | {m_relaxed*100:>6.2f}% |  61.44% |")
     print(f"  | Overall          | {overall_exact*100:>6.2f}% | {overall_relaxed*100:>6.2f}% |  45.52% |")
     print(f"  +------------------+---------+---------+---------+")
+    print(f"  Total inference time: {eval_time:.2f}s")
+    print(f"  Avg time per sample:  {avg_time:.4f}s")
     print()
 
     # Part 2: Visualize 5 from H + 5 from M

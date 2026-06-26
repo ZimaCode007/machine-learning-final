@@ -10,22 +10,23 @@ __pycache__/
 # Model weights & training outputs
 *.pth
 *.safetensors
+*.bin
 output/
 output_qa/
-demo_output/
+**/demo_output/
+Models/T5/demo/BEST/
+Models/VL-T5/demo/BEST/
 Models/VL-T5/output/
 Models/VL-T5/output_T5/
 Models/VL-T5/output_v2/
 Models/VL-T5/output_v3/
-Models/T5/saved_model/*
-!Models/T5/saved_model/.gitkeep
-!Models/T5/saved_model/.gitignore
+Models/VisionTapas/demo/phase1_best/
 Models/VisionTapas/output/
 Models/VisionTapas/output_qa/
-Models/VisionTapas/demo_output/
 
 # Data (too large for git)
 Models/VL-T5/data/
+.DS_Store
 
 # Misc
 paper_page.txt

@@ -217,15 +217,15 @@ class JointEncoder(T5Stack):
         # ourselves in which case we just need to make it broadcastable to all heads.
         extended_attention_mask = self.get_extended_attention_mask(
             attention_mask,
-            (B, L+V_L),
-            inputs_embeds.device)
+            (B, L+V_L))
 
         # initialize past_key_values with `None` if past does not exist
         if past_key_values is None:
             past_key_values = [None] * len(self.block)
 
         # Prepare head mask if needed
-        head_mask = self.get_head_mask(head_mask, self.config.num_layers)
+        if head_mask is None:
+            head_mask = [None] * self.config.num_layers
         present_key_value_states = () if use_cache else None
         all_hidden_states = () if output_hidden_states else None
         all_attentions = () if output_attentions else None
@@ -282,11 +282,6 @@ class JointEncoder(T5Stack):
                 # layer_outputs is a tuple with:
                 # hidden-states, key-value-states, (self-attention weights), (self-attention position bias), (cross-attention weights), (cross-attention position bias)
                 hidden_states, present_key_value_state = layer_outputs[:2]
-
-                # We share the position biases between the layers - the first layer store them
-                # layer_outputs = hidden-states, key-value-states (self-attention weights),
-                # (self-attention position bias), (cross-attention weights), (cross-attention position bias)
-                position_bias = layer_outputs[2]
 
                 # append next layer key value states
                 if use_cache:
@@ -360,7 +355,8 @@ class VLT5(T5ForConditionalGeneration):
         decoder_config.is_decoder = True
         decoder_config.is_encoder_decoder = False
 
-        self.decoder = T5Stack(decoder_config, self.shared)
+        self.decoder = T5Stack(decoder_config)
+        self.decoder.embed_tokens = self.shared
 
         self.lm_head = nn.Linear(config.d_model, config.vocab_size, bias=False)
 
@@ -474,12 +470,19 @@ class VLT5(T5ForConditionalGeneration):
                 decoder_inputs_embeds = decoder_inputs_embeds[:, -1:]
 
         if attention_mask is None:
-            attention_mask = input_ids.ne(self.config.pad_token_id).to(dtype=hidden_states.dtype, device=hidden_states.device)
+            if input_ids is not None:
+                attention_mask = input_ids.ne(self.config.pad_token_id).to(dtype=hidden_states.dtype, device=hidden_states.device)
+            else:
+                attention_mask = torch.ones(hidden_states.size(0), hidden_states.size(1), dtype=hidden_states.dtype, device=hidden_states.device)
         if vis_attention_mask is None:
             B, L = attention_mask.size()
             V_L = encoder_outputs[0].size(1) - L
-            vis_attention_mask = attention_mask.new_ones(B, V_L)
-        encoder_attention_mask = torch.cat([attention_mask, vis_attention_mask], dim=1)
+            if V_L > 0:
+                vis_attention_mask = attention_mask.new_ones(B, V_L)
+        if vis_attention_mask is not None:
+            encoder_attention_mask = torch.cat([attention_mask, vis_attention_mask], dim=1)
+        else:
+            encoder_attention_mask = attention_mask
 
         # Decode
         decoder_outputs = self.decoder(
