@@ -1,11 +1,11 @@
 """
 VL-T5 Demo: evaluate on ChartQA test set and visualize predictions.
 
-Part 1: Random 200 human + 200 augmented samples → accuracy stats
-Part 2: Random 5 human + 5 augmented samples → one image per sample with question and prediction
+Part 1: Random 200 human + 200 augmented samples -> accuracy stats
+Part 2: Random 5 human + 5 augmented samples -> one image per sample
 
 Usage:
-    python demo.py --model output/BEST.pth --chartqa_dir "../../ChartQA Dataset"
+    python demo.py --model output_v4/BEST.pth --chartqa_dir "../../ChartQA Dataset"
 """
 import argparse
 import sys
@@ -78,27 +78,29 @@ class GridFeatureExtractor:
 
 
 def load_model(model_path, backbone, device):
-    tokenizer = VLT5TokenizerFast.from_pretrained(backbone)
+    if os.path.isdir(model_path):
+        tokenizer = VLT5TokenizerFast.from_pretrained(model_path)
+        model = VLT5VQA.from_pretrained(model_path)
+    else:
+        tokenizer = VLT5TokenizerFast.from_pretrained(backbone)
+        config = T5Config.from_pretrained(backbone)
+        config.feat_dim = 2048
+        config.pos_dim = 4
+        config.n_images = 2
+        config.use_vis_order_embedding = True
+        config.use_vis_layer_norm = True
+        config.individual_vis_layer_norm = True
+        config.share_vis_lang_layer_norm = False
+        config.classifier = False
+        config.losses = "lm,obj,attr,feat"
+        model = VLT5VQA(config)
+        model.resize_token_embeddings(len(tokenizer))
+        state_dict = torch.load(model_path, map_location="cpu")
+        for k in list(state_dict.keys()):
+            if k.startswith("module."):
+                state_dict[k[7:]] = state_dict.pop(k)
+        model.load_state_dict(state_dict, strict=False)
 
-    config = T5Config.from_pretrained(backbone)
-    config.feat_dim = 2048
-    config.pos_dim = 4
-    config.n_images = 2
-    config.use_vis_order_embedding = True
-    config.use_vis_layer_norm = True
-    config.individual_vis_layer_norm = True
-    config.share_vis_lang_layer_norm = False
-    config.classifier = False
-    config.losses = "lm,obj,attr,feat"
-
-    model = VLT5VQA(config)
-    model.resize_token_embeddings(len(tokenizer))
-
-    state_dict = torch.load(model_path, map_location="cpu")
-    for k in list(state_dict.keys()):
-        if k.startswith("module."):
-            state_dict[k[7:]] = state_dict.pop(k)
-    model.load_state_dict(state_dict, strict=False)
     model.eval().to(device)
     model.tokenizer = tokenizer
 
@@ -209,7 +211,7 @@ def save_single_sample(item, chartqa_dir, save_path, index, category):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, default="output/BEST.pth")
+    parser.add_argument("--model", type=str, default="output_v4/BEST")
     parser.add_argument("--chartqa_dir", type=str, default="../../ChartQA Dataset")
     parser.add_argument("--backbone", type=str, default="t5-base")
     parser.add_argument("--seed", type=int, default=42)
@@ -221,7 +223,6 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
 
-    # Clean previous results
     demo_dir = "output/demo"
     if os.path.exists(demo_dir):
         shutil.rmtree(demo_dir)
@@ -235,9 +236,6 @@ def main():
     print("Loading test data...")
     human, augmented = load_qa_data(args.chartqa_dir)
 
-    # =========================================
-    # Part 1: Accuracy evaluation (200 + 200)
-    # =========================================
     print(f"\n{'='*60}")
     print(f"  PART 1: Accuracy evaluation ({args.n_eval} human + {args.n_eval} augmented)")
     print(f"{'='*60}")
@@ -272,9 +270,6 @@ def main():
         }, f, indent=2, ensure_ascii=False)
     print(f"Detailed results saved to {demo_dir}/accuracy_results.json")
 
-    # =========================================
-    # Part 2: Visual comparison (5 + 5)
-    # =========================================
     print(f"\n{'='*60}")
     print(f"  PART 2: Visual comparison ({args.n_show} human + {args.n_show} augmented)")
     print(f"{'='*60}")
