@@ -27,7 +27,8 @@ import matplotlib.font_manager as fm
 # ================================================================
 
 def load_model(ckpt_path):
-    fv = pickle.load(open('converted_data/fixed_vocab.pkl', 'rb'))
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    fv = pickle.load(open(os.path.join(base_dir, 'datasets', 'fixed_vocab.pkl'), 'rb'))
     agg = {'0': 'NONE', '1': 'SUM', '2': 'AVERAGE', '3': 'COUNT', '4': 'Diff', '5': 'Ratio'}
     for i in range(len(fv)):
         agg[str(i + 6)] = str(fv[i])
@@ -57,6 +58,7 @@ def load_model(ckpt_path):
 OPS = {0: 'SELECT', 1: 'SUM', 2: 'AVERAGE', 3: 'COUNT', 4: 'Diff', 5: 'Ratio'}
 
 def predict(model, tok, feat, fv, imgname, question, tables_folder, images_folder, device='cpu'):
+    imgname = imgname.split('.')[0]
     df = pd.read_csv(os.path.join(tables_folder, imgname + '.csv'), encoding='utf8')
     df.columns = [str(c) if not (isinstance(c, float) and c != c) else f'col_{i}' for i, c in enumerate(df.columns)]
     df = df.fillna('').astype(object)
@@ -274,14 +276,13 @@ def visualize_samples(model, tok, feat, fv, val_data, tables_folder, images_fold
 
 def main():
     base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    base_dataset = os.path.join(base, 'ChartQA Dataset')
-    tables_folder = os.path.join(base_dataset, 'val', 'tables')
-    images_folder = os.path.join(base_dataset, 'val', 'png')
+    datasets_dir = os.path.join(base, 'datasets')
+    tables_folder = os.path.join(datasets_dir, 'test', 'tables')
+    images_folder = os.path.join(datasets_dir, 'test', 'png')
     out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'demo_output')
     ckpt = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'output_qa', 'phase1_best')
 
     import shutil
-    out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'demo_output')
     if os.path.exists(out_dir):
         shutil.rmtree(out_dir)
 
@@ -295,25 +296,26 @@ def main():
     model, tok, feat, fv, agg, device = load_model(ckpt)
     print(f"  Model loaded on {device}.\n")
 
-    val_data = json.load(open('converted_data/val_qa.json', encoding='utf-8'))
+    test_data = json.load(open(os.path.join(datasets_dir, 'test', 'visiontapas_qa.json'), encoding='utf-8'))
 
-    # Split into H (human) and M (augmented/machine)
-    aug_qs = set((x['imgname'].replace('.png', ''), x['query'])
-                 for x in json.load(open(os.path.join(base_dataset, 'val', 'val_augmented.json'), encoding='utf-8')))
-    hum_qs = set((x['imgname'].replace('.png', ''), x['query'])
-                 for x in json.load(open(os.path.join(base_dataset, 'val', 'val_human.json'), encoding='utf-8')))
+    # Split into H (human) and M (augmented) using ChartQA original files
+    chartqa_dir = os.path.join(base, 'ChartQA Dataset')
+    h_qs = set((x['imgname'].replace('.png', ''), x['query'])
+               for x in json.load(open(os.path.join(chartqa_dir, 'test', 'test_human.json'), encoding='utf-8')))
+    m_qs = set((x['imgname'].replace('.png', ''), x['query'])
+               for x in json.load(open(os.path.join(chartqa_dir, 'test', 'test_augmented.json'), encoding='utf-8')))
 
-    val_h = [x for x in val_data if (x['image_index'], x['question']) in hum_qs]
-    val_m = [x for x in val_data if (x['image_index'], x['question']) in aug_qs]
-    print(f"  Test data: {len(val_data)} total ({len(val_h)} Human + {len(val_m)} Augmented)\n")
+    test_h = [x for x in test_data if (x['image_index'].replace('.png', ''), x['question']) in h_qs]
+    test_m = [x for x in test_data if (x['image_index'].replace('.png', ''), x['question']) in m_qs]
+    print(f"  Test data: {len(test_data)} total ({len(test_h)} Human + {len(test_m)} Augmented)\n")
 
     # Part 1: Accuracy on H and M separately
     print("=" * 60)
     print("  PART 1: Accuracy Evaluation (200 Human + 200 Augmented)")
     print("=" * 60)
 
-    h_exact, h_relaxed = evaluate_accuracy(model, tok, feat, fv, val_h, tables_folder, images_folder, device, n=200)
-    m_exact, m_relaxed = evaluate_accuracy(model, tok, feat, fv, val_m, tables_folder, images_folder, device, n=200)
+    h_exact, h_relaxed = evaluate_accuracy(model, tok, feat, fv, test_h, tables_folder, images_folder, device, n=200)
+    m_exact, m_relaxed = evaluate_accuracy(model, tok, feat, fv, test_m, tables_folder, images_folder, device, n=200)
 
     overall_exact = (h_exact + m_exact) / 2
     overall_relaxed = (h_relaxed + m_relaxed) / 2
@@ -329,8 +331,8 @@ def main():
     print()
 
     # Part 2: Visualize 5 from H + 5 from M
-    visualize_samples(model, tok, feat, fv, val_h, tables_folder, images_folder, device, out_dir, n=5, label="Human")
-    visualize_samples(model, tok, feat, fv, val_m, tables_folder, images_folder, device, out_dir, n=5, label="Augmented")
+    visualize_samples(model, tok, feat, fv, test_h, tables_folder, images_folder, device, out_dir, n=5, label="Human")
+    visualize_samples(model, tok, feat, fv, test_m, tables_folder, images_folder, device, out_dir, n=5, label="Augmented")
 
     # Final summary
     print()

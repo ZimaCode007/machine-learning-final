@@ -138,9 +138,9 @@ class EpochVisualizationCallback(TrainerCallback):
 
 def main():
     base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    base_dataset = os.path.join(base, 'ChartQA Dataset')
+    base_dataset = os.path.join(base, 'datasets')
     out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'output_qa')
-    data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'converted_data')
+    data_dir = os.path.join(base, 'datasets')
 
     batch_size = 8
     grad_accum = 2          # effective batch size = 8 * 2 = 16
@@ -182,15 +182,15 @@ def main():
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     train_dataset = VisionTapasForQuestionAnsweringDataset(
-        os.path.join(data_dir, 'train_qa.json'),
-        os.path.join(base_dataset, 'train', 'tables'),
-        os.path.join(base_dataset, 'train', 'png'),
+        os.path.join(data_dir, 'train', 'visiontapas_qa.json'),
+        os.path.join(data_dir, 'train', 'tables'),
+        os.path.join(data_dir, 'train', 'png'),
         tokenizer, feature_extractor, classes_mappings
     )
     val_dataset = VisionTapasForQuestionAnsweringDataset(
-        os.path.join(data_dir, 'val_qa.json'),
-        os.path.join(base_dataset, 'val', 'tables'),
-        os.path.join(base_dataset, 'val', 'png'),
+        os.path.join(data_dir, 'validation', 'visiontapas_qa.json'),
+        os.path.join(data_dir, 'validation', 'tables'),
+        os.path.join(data_dir, 'validation', 'png'),
         tokenizer, feature_extractor, classes_mappings
     )
     steps_per_epoch = math.ceil(len(train_dataset) / batch_size)
