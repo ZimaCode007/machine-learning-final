@@ -7,7 +7,7 @@ from random import shuffle
 import time
 import sys
 import transformers
-from transformers import ViTFeatureExtractor, TapasTokenizer
+from transformers import ViTImageProcessor, TapasTokenizer
 import torch.nn as nn
 import torch
 import pandas as pd
@@ -56,7 +56,7 @@ def main():
     logger.info("Loading Tokenizer and Feat Extractor")
     # Tokenizer and feature extractor
     tokenizer = TapasTokenizer.from_pretrained('google/tapas-base-finetuned-wtq')
-    feature_extractor = ViTFeatureExtractor.from_pretrained('google/vit-base-patch16-224-in21k')
+    feature_extractor = ViTImageProcessor.from_pretrained('google/vit-base-patch16-224-in21k')
 
     logger.info("Loading Model")
     # Check if a checkpoint is provided
@@ -88,7 +88,7 @@ def main():
         dataloader_num_workers=args.num_workers,
 
         save_strategy="steps",
-        evaluation_strategy = "steps",
+        eval_strategy = "steps",
         logging_steps = eval_steps,
         eval_steps = eval_steps,
         save_steps = eval_steps,

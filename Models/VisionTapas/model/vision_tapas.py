@@ -7,17 +7,19 @@ import time
 import sys
 import logging
 import transformers
-from transformers import PreTrainedModel, ViTModel, ViTFeatureExtractor, LxmertXLayer, TapasModel, TapasForSequenceClassification
+from transformers import PreTrainedModel, ViTModel, ViTImageProcessor, TapasModel, TapasForSequenceClassification
+from transformers.models.lxmert.modeling_lxmert import LxmertXLayer
+from dataclasses import dataclass
 from transformers.file_utils import ModelOutput
 from transformers import TapasConfig, LxmertConfig, ViTConfig, ViTPreTrainedModel, PreTrainedModel
-from transformers.models.vit.modeling_vit import ViTEncoder
+
 import torch.nn as nn
 from transformers import TapasTokenizer
 import torch
 import pandas as pd
-from transformers import ViTFeatureExtractor, ViTModel
+from transformers import ViTImageProcessor, ViTModel
 from PIL import Image
-from transformers import AdamW
+
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LambdaLR
 from transformers import EvalPrediction
@@ -36,6 +38,7 @@ class GeLU(nn.Module):
 
 
 
+@dataclass
 class VisionTapasModelOutput(ModelOutput):
     """
     VisionTapasModelOutput's outputs that contain the last hidden states, pooled outputs, and attention probabilities for the language,
@@ -92,6 +95,7 @@ class VisionTapasPreTrainedModel(PreTrainedModel):
 
     config_class = VisionTapasConfig
     base_model_prefix = "visiontapas"
+    _tied_weights_keys = []
 
     # Copied from transformers.models.bert.modeling_bert.BertPreTrainedModel._init_weights
     def _init_weights(self, module):
@@ -146,8 +150,7 @@ class VisionTapasModel(VisionTapasPreTrainedModel):
         # Pooler
         self.pooler = VisionTapasPooler(self.lxmert_config)
 
-        #Initialize weights
-        self.init_weights()
+        self.post_init()
 
     def forward(self, input_ids, token_type_ids, attention_mask, pixel_values, output_attentions=None, output_hidden_states=None, return_dict=None):
 
