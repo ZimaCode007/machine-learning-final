@@ -61,7 +61,7 @@ def count_parameters(model):
 
 
 def load_state_dict(state_dict_path, loc='cpu'):
-    state_dict = torch.load(state_dict_path, map_location=loc)
+    state_dict = torch.load(state_dict_path, map_location=loc, weights_only=True)
     # Change Multi GPU to single GPU
     original_keys = list(state_dict.keys())
     for key in original_keys:

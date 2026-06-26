@@ -13,9 +13,8 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 import copy
 
 from transformers.modeling_outputs import ModelOutput, BaseModelOutput, BaseModelOutputWithPast, BaseModelOutputWithPastAndCrossAttentions, Seq2SeqLMOutput, Seq2SeqModelOutput
-from transformers.modeling_utils import PreTrainedModel, find_pruneable_heads_and_indices, prune_linear_layer
+from transformers.modeling_utils import PreTrainedModel
 from transformers.utils import logging
-from transformers import BeamScorer, BeamSearchScorer
 
 # from utils import *
 
@@ -160,7 +159,7 @@ class JointEncoder(T5Stack):
             config.d_model, eps=config.layer_norm_epsilon)
         self.dropout = nn.Dropout(config.dropout_rate)
 
-        self.init_weights()
+        self.post_init()
         self.model_parallel = False
         self.device_map = None
 
@@ -365,7 +364,7 @@ class VLT5(T5ForConditionalGeneration):
 
         self.lm_head = nn.Linear(config.d_model, config.vocab_size, bias=False)
 
-        self.init_weights()
+        self.post_init()
 
         # Model parallel
         self.model_parallel = False
@@ -554,17 +553,16 @@ class VLT5(T5ForConditionalGeneration):
         )
 
     def prepare_inputs_for_generation(
-        self, input_ids, past=None, attention_mask=None, use_cache=None,
+        self, input_ids, past_key_values=None, attention_mask=None, use_cache=None,
         encoder_outputs=None,
         **kwargs):
 
-        # cut decoder_input_ids if past is used
-        if past is not None:
+        if past_key_values is not None:
             input_ids = input_ids[:, -1:]
 
         output = {
             "decoder_input_ids": input_ids,
-            "past_key_values": past,
+            "past_key_values": past_key_values,
             "encoder_outputs": encoder_outputs,
             "attention_mask": attention_mask,
             "use_cache": use_cache,

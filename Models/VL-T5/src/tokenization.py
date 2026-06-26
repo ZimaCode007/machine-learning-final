@@ -38,6 +38,13 @@ class VLT5Tokenizer(T5Tokenizer):
         if vis_extra_ids > 0:
             additional_special_tokens.extend(["<vis_extra_id_{}>".format(i) for i in range(vis_extra_ids)])
 
+        self.vocab_file = vocab_file
+        self._extra_ids = extra_ids
+        self._vis_extra_ids = vis_extra_ids
+
+        self.sp_model = spm.SentencePieceProcessor()
+        self.sp_model.Load(vocab_file)
+
         PreTrainedTokenizer.__init__(
             self,
             eos_token=eos_token,
@@ -47,13 +54,6 @@ class VLT5Tokenizer(T5Tokenizer):
             additional_special_tokens=additional_special_tokens,
             **kwargs,
         )
-
-        self.vocab_file = vocab_file
-        self._extra_ids = extra_ids
-        self._vis_extra_ids = vis_extra_ids
-
-        self.sp_model = spm.SentencePieceProcessor()
-        self.sp_model.Load(vocab_file)
 
     @property
     def vocab_size(self):
@@ -124,68 +124,19 @@ def convert_slow_vlt5tokenizer(vlt5tokenizer):
 
 
 class VLT5TokenizerFast(T5TokenizerFast):
+    """T5TokenizerFast extended with <vis_extra_id_N> visual tokens."""
 
-    # vocab_files_names = VOCAB_FILES_NAMES
-    # pretrained_vocab_files_map = PRETRAINED_VOCAB_FILES_MAP
-    # max_model_input_sizes = PRETRAINED_POSITIONAL_EMBEDDINGS_SIZES
-    # model_input_names = ["attention_mask"]
-    slow_tokenizer_class = VLT5Tokenizer
-
-    prefix_tokens: List[int] = []
-
-    def __init__(
-        self,
-        vocab_file,
-        tokenizer_file=None,
-        eos_token="</s>",
-        unk_token="<unk>",
-        pad_token="<pad>",
-        extra_ids=100,
-        vis_extra_ids=100,
-        additional_special_tokens=None,
-        **kwargs
-    ):
-        # Add extra_ids to the special token list
-        if extra_ids > 0 and additional_special_tokens is None:
-            additional_special_tokens = ["<extra_id_{}>".format(i) for i in range(extra_ids)]
-        elif extra_ids > 0 and additional_special_tokens is not None:
-            # Check that we have the right number of extra_id special tokens
-            extra_tokens = len(set(filter(lambda x: bool("extra_id" in x), additional_special_tokens)))
-            if extra_tokens != extra_ids:
-                raise ValueError(
-                    f"Both extra_ids ({extra_ids}) and additional_special_tokens ({additional_special_tokens}) are provided to T5Tokenizer. "
-                    "In this case the additional_special_tokens must include the extra_ids tokens"
-                )
-
-        if vis_extra_ids > 0:
-            additional_special_tokens.extend(["<vis_extra_id_{}>".format(i) for i in range(vis_extra_ids)])
-
-        slow_tokenizer = self.slow_tokenizer_class(
-            vocab_file,
-            tokenizer_file=tokenizer_file,
-            eos_token=eos_token,
-            unk_token=unk_token,
-            pad_token=pad_token,
-            extra_ids=extra_ids,
-            vis_extra_ids=vis_extra_ids,
-            # additional_special_tokens=additional_special_tokens,
-            **kwargs
-        )
-        fast_tokenizer = convert_slow_vlt5tokenizer(slow_tokenizer)
-        self._tokenizer = fast_tokenizer
-
-        PreTrainedTokenizerBase.__init__(
-            self,
-            tokenizer_file=tokenizer_file,
-            eos_token=eos_token,
-            unk_token=unk_token,
-            pad_token=pad_token,
-            extra_ids=extra_ids,
-            vis_extra_ids=vis_extra_ids,
-            additional_special_tokens=additional_special_tokens,
-            **kwargs,
-        )
-
-        self.vocab_file = vocab_file
-        self._extra_ids = extra_ids
+    def __init__(self, *args, vis_extra_ids=100, **kwargs):
+        super().__init__(*args, **kwargs)
         self._vis_extra_ids = vis_extra_ids
+        vis_tokens = [f"<vis_extra_id_{i}>" for i in range(vis_extra_ids)]
+        self.add_tokens(vis_tokens, special_tokens=True)
+
+    @classmethod
+    def from_pretrained(cls, pretrained_model_name_or_path, *args, vis_extra_ids=100, **kwargs):
+        tokenizer = T5TokenizerFast.from_pretrained(pretrained_model_name_or_path, *args, **kwargs)
+        tokenizer.__class__ = cls
+        tokenizer._vis_extra_ids = vis_extra_ids
+        vis_tokens = [f"<vis_extra_id_{i}>" for i in range(vis_extra_ids)]
+        tokenizer.add_tokens(vis_tokens, special_tokens=True)
+        return tokenizer

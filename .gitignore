@@ -1,10 +1,31 @@
-.venv/
+# Python
 __pycache__/
 *.pyc
+.venv/
+
+# IDE
 .idea/
+.claude/
+
+# Model weights & training outputs
+*.pth
+*.safetensors
 output/
 output_qa/
-*.safetensors
-.claude/
 demo_output/
+Models/VL-T5/output/
+Models/VL-T5/output_T5/
+Models/VL-T5/output_v2/
+Models/VL-T5/output_v3/
+Models/T5/saved_model/*
+!Models/T5/saved_model/.gitkeep
+!Models/T5/saved_model/.gitignore
+Models/VisionTapas/output/
+Models/VisionTapas/output_qa/
+Models/VisionTapas/demo_output/
+
+# Data (too large for git)
+Models/VL-T5/data/
+
+# Misc
 paper_page.txt
