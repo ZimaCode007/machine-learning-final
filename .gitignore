@@ -2,6 +2,6 @@ __pycache__/
 *.pyc
 .idea/
 .venv/
-*.pth
 Models/VL-T5/data/
 Models/VL-T5/output/
+datasets/
