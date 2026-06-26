@@ -16,7 +16,6 @@ import shutil
 from pprint import pprint
 
 from utils import load_state_dict, LossMeter, set_global_logging_level
-import wandb
 from pprint import pformat
 
 proj_dir = Path(__file__).resolve().parent.parent
@@ -26,7 +25,7 @@ _use_apex = False
 
 # Check if Pytorch version >= 1.6 to switch between Native AMP and Apex
 if version.parse(torch.__version__) < version.parse("1.6"):
-    from transormers.file_utils import is_apex_available
+    from transformers.file_utils import is_apex_available
     if is_apex_available():
         from apex import amp
     _use_apex = True
@@ -103,7 +102,7 @@ class TrainerBase(object):
 
     def create_tokenizer(self, **kwargs):
         from transformers import T5Tokenizer, BartTokenizer, T5TokenizerFast, BartTokenizerFast
-        from tokenization import VLT5Tokenizer, VLT5TokenizerFast
+        from tokenization import VLT5TokenizerFast
 
         if 't5' in self.args.tokenizer:
             if self.args.use_vision:
@@ -217,7 +216,7 @@ class TrainerBase(object):
     def load(self, path, loc=None):
         if loc is None and hasattr(self.args, 'gpu'):
             loc = f'cuda:{self.args.gpu}'
-        state_dict = torch.load("%s.pth" % path, map_location=loc)
+        state_dict = torch.load("%s.pth" % path, map_location=loc, weights_only=True)
 
         original_keys = list(state_dict.keys())
         for key in original_keys:
