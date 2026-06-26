@@ -9,7 +9,7 @@ class VisionTapasInferenceDataset(torch.utils.data.Dataset):
     def __init__(self, qa_file_path, tables_folder, images_folder, tokenizer, feature_extractor):
 
         # Load QA file
-        qa_file = open(qa_file_path, "r")
+        qa_file = open(qa_file_path, "r", encoding="utf-8")
         self.instances = json.load(qa_file)
 
         self.tables_folder = tables_folder

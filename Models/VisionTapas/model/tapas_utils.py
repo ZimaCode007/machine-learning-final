@@ -32,14 +32,40 @@ from torch.nn import CrossEntropyLoss, MSELoss
 EPSILON_ZERO_DIVISION = 1e-10
 CLOSE_ENOUGH_TO_LOG_ZERO = -10000.0
 
-try:
-    from torch_scatter import scatter
-except OSError:
-    logger.error(
-        "TAPAS models are not usable since `torch_scatter` can't be loaded."
-        "It seems you have `torch_scatter` installed with the wrong CUDA version."
-        "Please try to reinstall it following the instructions here: https://github.com/rusty1s/pytorch_scatter."
-    )
+def scatter(src, index, dim, dim_size, reduce):
+    """Pure PyTorch replacement for torch_scatter.scatter."""
+    index_expanded = index.unsqueeze(-1).expand_as(src) if src.dim() > 1 else index
+    if reduce == "sum":
+        out = torch.zeros(dim_size, *src.shape[1:], dtype=src.dtype, device=src.device)
+        out.scatter_add_(dim, index_expanded, src)
+        return out
+    elif reduce == "mean":
+        out_sum = torch.zeros(dim_size, *src.shape[1:], dtype=src.dtype, device=src.device)
+        out_sum.scatter_add_(dim, index_expanded, src)
+        count = torch.zeros(dim_size, *src.shape[1:], dtype=src.dtype, device=src.device)
+        count.scatter_add_(dim, index_expanded, torch.ones_like(src))
+        count = count.clamp(min=1)
+        return out_sum / count
+    elif reduce == "max":
+        if src.is_floating_point():
+            fill_value = float('-inf')
+        else:
+            fill_value = torch.iinfo(src.dtype).min
+        out = torch.full((dim_size, *src.shape[1:]), fill_value, dtype=src.dtype, device=src.device)
+        out.scatter_reduce_(dim, index_expanded, src, reduce="amax")
+        out[out == fill_value] = 0
+        return out
+    elif reduce == "min":
+        if src.is_floating_point():
+            fill_value = float('inf')
+        else:
+            fill_value = torch.iinfo(src.dtype).max
+        out = torch.full((dim_size, *src.shape[1:]), fill_value, dtype=src.dtype, device=src.device)
+        out.scatter_reduce_(dim, index_expanded, src, reduce="amin")
+        out[out == fill_value] = 0
+        return out
+    else:
+        raise ValueError(f"Unsupported reduce: {reduce}")
 
 
 

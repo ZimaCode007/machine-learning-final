@@ -227,6 +227,17 @@ STRING_NORMALIZATIONS = (
 )
 
 
+def _split_thousands(delimiter, value):
+    """Checks whether the delimiter is used as a thousands separator."""
+    parts = value.split(delimiter)
+    if len(parts) <= 1:
+        return False
+    for i, part in enumerate(parts):
+        if i > 0 and len(part) != 3:
+            return False
+    return True
+
+
 def to_float32(v):
     """If v is a float reduce precision to that of a 32 bit float."""
     if not isinstance(v, float):
@@ -257,12 +268,12 @@ def convert_to_float(value):
         if "." in sanitized and "," in sanitized:
             return float(sanitized.replace(",", ""))
         # 1,000
-        #if "," in sanitized and _split_thousands(",", sanitized):
-        #    return float(sanitized.replace(",", ""))
+        if "," in sanitized and _split_thousands(",", sanitized):
+            return float(sanitized.replace(",", ""))
         # 5,5556
-        #if "," in sanitized and sanitized.count(",") == 1 and not _split_thousands(
-        #        ",", sanitized):
-        #    return float(sanitized.replace(",", "."))
+        if "," in sanitized and sanitized.count(",") == 1 and not _split_thousands(
+                ",", sanitized):
+            return float(sanitized.replace(",", "."))
         # 0.0.0.1
         if sanitized.count(".") > 1:
             return float(sanitized.replace(".", ""))

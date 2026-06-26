@@ -9,7 +9,7 @@ class VisionTapasForClassificationDataset(torch.utils.data.Dataset):
     def __init__(self, qa_file_path, tables_folder, images_folder, tokenizer, feature_extractor):
 
         # Load QA file
-        qa_file = open(qa_file_path, "r")
+        qa_file = open(qa_file_path, "r", encoding="utf-8")
         self.instances = json.load(qa_file)
 
         self.tables_folder = tables_folder
@@ -24,7 +24,11 @@ class VisionTapasForClassificationDataset(torch.utils.data.Dataset):
         answer = instance["answer"]
 
         # Load & Process table
-        data_table = pd.read_csv(os.path.join(self.tables_folder, str(image_index)+".csv")).astype(str)
+        data_table = pd.read_csv(os.path.join(self.tables_folder, str(image_index)+".csv"))
+        data_table.columns = [str(c) if not (isinstance(c, float) and c != c) else f"col_{i}" for i, c in enumerate(data_table.columns)]
+        data_table = data_table.fillna("").astype(object)
+        for col in data_table.columns:
+            data_table[col] = data_table[col].astype(str)
         encoding = self.tokenizer(table=data_table, queries=[question], padding="max_length", truncation=True, return_tensors="pt")
 
         # Load & Process Image

@@ -9,6 +9,7 @@ import time
 import sys
 import logging
 import transformers
+from dataclasses import dataclass
 from transformers.file_utils import ModelOutput
 import torch.nn as nn
 import torch
@@ -23,15 +24,8 @@ from .tapas_utils import _single_column_cell_selection_loss, _calculate_aggregat
 EPSILON_ZERO_DIVISION = 1e-10
 CLOSE_ENOUGH_TO_LOG_ZERO = -10000.0
 
-try:
-    from torch_scatter import scatter
-except OSError:
-    logger.error(
-        "TAPAS models are not usable since `torch_scatter` can't be loaded."
-        "It seems you have `torch_scatter` installed with the wrong CUDA version."
-        "Please try to reinstall it following the instructions here: https://github.com/rusty1s/pytorch_scatter."
-    )
 
+@dataclass
 class VisionTapasForQuestionAnsweringOutput(ModelOutput):
     """
     VisionTapasModelOutput's outputs that contain the last hidden states, pooled outputs, and attention probabilities for the language,
@@ -100,7 +94,7 @@ class VisionTapasForQuestionAnswering(VisionTapasPreTrainedModel):
         self.loss = nn.CrossEntropyLoss()
 
         # Initialize weights
-        self.init_weights()
+        self.post_init()
 
     def forward(self, input_ids, token_type_ids, attention_mask, pixel_values=None, inputs_embeds=None,
                 labels=None, output_attentions=None, output_hidden_states=None, return_dict=None, table_mask = None, aggregation_labels = None,
